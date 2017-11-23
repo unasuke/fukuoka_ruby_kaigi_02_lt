@@ -1,0 +1,420 @@
+doctype html
+html
+  head
+    meta(charset='utf-8')
+    meta(name='viewport', content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no')
+    title Ruby on Rails on ECS #fukuokark02
+    link(rel='stylesheet', href='css/reveal.min.css')
+    link(rel='stylesheet', href='css/theme/white.css')
+    link(rel='stylesheet', href='lib/css/zenburn.css')
+    link(rel='stylesheet', href='css/font-awesome.min.css')
+    link(rel='stylesheet', href='css/my.css')
+    script.
+      var link = document.createElement( 'link' );
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+      document.getElementsByTagName( 'head' )[0].appendChild( link );
+    script(async='', src='//platform.twitter.com/widgets.js', charset='utf-8')
+  body
+    .reveal
+      .slides
+        section
+          h1
+            | Ruby on Rails on ECS
+          p 2017-11-24
+          p 福岡Ruby会議02・前夜祭
+          p うなすけ
+        section
+          h2 connpass
+          img(src="/img/connpass-long-title.png")
+          small: a(href='https://fukuokarb.connpass.com/event/68497/') https://fukuokarb.connpass.com/event/68497/
+          p タイトル長過ぎました 🙇
+        section
+          p
+            | 新規RailsアプリをECSで運用したときの知見や、
+            br
+            | 現行のRailsアプリをDocker化するときに遭遇した課題などについて
+          p 改め
+          h2 Ruby on Rails on ECS
+          img(src='img/connpass-atnd.png')
+        section
+          h2 自己紹介
+          .flex-container
+            .item-40
+              img(src='img/icon_raw.jpg' alt='icon')
+            .item-60
+              ul
+                li 名前: うなすけ
+                li 株式会社spice life
+                li インフラリードエンジニア
+                br
+                li
+                  | twitter&nbsp;
+                  i.fa.fa-twitter
+                  | :&nbsp;
+                  a(href='https://twitter.com/yu_suke1994') @yu_suke1994
+                li
+                  | GitHub&nbsp;
+                  i.fa.fa-github
+                  | :&nbsp;
+                  a(href='https://github.com/unasuke') @unasuke
+        section
+          h2 spice life
+          .flex-container
+            .item-50
+              h3 TMIX
+              img(src='img/tmix-lp.png' alt='TMIX')
+            .item-50
+              h3 STEERS
+              img(src='img/steers-lp.png' alt='STEERS')
+        section
+          h2 もくじ
+          ol
+            li 新規Railsアプリとは ⬅️⬅️⬅️
+            li まずはDocker化
+            li ECSで動かす
+            li ハマったところ
+            li 既存のRailsのESC化のハードル
+            li まとめ
+        section
+          h2 新規Railsアプリ
+          dl
+            dt rails new
+            dd 2017-04-10
+            dt 用途
+            dd 大口注文の社内管理用
+          p Docker(ECS)化するにはもってこいだった
+        section
+          h2 もくじ
+          ol
+            li 新規Railsアプリとは
+            li まずはDocker化 ⬅️⬅️⬅️
+            li ECSで動かす
+            li ハマったところ
+            li 既存のRailsのESC化のハードル
+            li まとめ
+        section
+          h2 まずはDocker化
+          p なんだかんだ環境ごとにDockerfileはわかれちゃう
+          pre
+            code
+              | app
+              | config
+              | db
+              | docker/
+              |   └ app-base/
+              |       └ Dockerfile        # apt packages
+              |   └ app-development/
+              |       └ Dockerfile        # gem group :development
+              |   └ app-production/
+              |       └ Dockerfile        # gem group :production
+        section
+          h2 まずはDocker化
+          h3 asset precompile
+          p Q. assetどこに置く問題
+          ul
+            li S3などのオブジェクトストレージ
+            li コンテナの中
+        section
+          h2 まずはDocker化
+          h3 asset precompile
+          h4 asset置き場
+          dl
+            dt オブジェクトストレージ
+            dd コンテナイメージが軽くなる
+            dt コンテナの中
+            dd お手軽
+        section
+          h2 まずはDocker化
+          h3 asset precompile
+          h4 asset置き場
+          p コンテナの中に置くことにした
+          p CDN → nginx → container
+          small
+            | 参考:
+            a(href='http://r7kamura.hatenablog.com/entry/2016/12/26/041931')
+              | amakanの本番環境をDockerに移行した - ✘╹◡╹✘
+        section
+          h2 まずはDocker化
+          h3 assets in container
+          p
+            | asset配信用ドメイン(CDN)以外からの
+            br
+            | assetへのアクセスを弾きたい
+        section
+          h2 まずはDocker化
+          h3 assets in container
+          p nginx.confで制御
+          table
+            thead
+              tr
+                th path
+                th asset.example.com
+                th example.com
+            tbody
+              tr
+                td
+                  code /asset/*
+                td 200
+                td 200
+              tr
+                td
+                  code /
+                td 404
+                td 200
+        section
+          h2 もくじ
+          ol
+            li 新規Railsアプリとは
+            li まずはDocker化
+            li ECSで動かす ⬅️⬅️⬅️
+            li ハマったところ
+            li 既存のRailsのESC化のハードル
+            li まとめ
+        section
+          h2 ECSで動かす
+          h3 Docker imageのbuild/push
+          p なるべく速くすませたい
+        section
+          h2 ECSで動かす
+          h3 Docker imageのbuild/push
+          h4 検証したCI Service
+          ul
+            li Circle CI
+            li Travis CI
+            li Codeship
+            li Codefresh
+            li Drone.io
+        section
+          h2 ECSで動かす
+          h3 Docker imageのbuild/push
+          h4 Drone.ioを選択
+          ul
+            li 😄 Docker layer cache
+            li 😄 Fast push to ECR (オンプレなので)
+            li 😄 Fast build (c4.large)
+            li 😣 オンプレミス
+            li 🤔 OSS
+        section
+          h2 ECSで動かす
+          h3 Deploy
+          ul
+            li Service / Task Definition を一元管理したい
+            li 環境を問わずデプロイできるようにする
+            li revisionをカッチリ指定したい
+        section
+          h2 ECSで動かす
+          h3 Deploy
+          h4 unasuke/mikoshi
+          p: a(href='https://github.com/unasuke/mikoshi/') https://github.com/unasuke/mikoshi/
+          p Service / Task DefinitionをYaml(ERB)で管理する
+          p 定義を含むDocker imageを作成してpull/deploy
+        section
+          h2 ECSで動かす
+          h3 Deploy
+          h4 unasuke/mikoshi
+          pre
+            code.lang-yaml
+              | # task_definitions/ping2googledns.yml.erb
+              | task_definition:
+              |   family: "ping2googledns"
+              |   network_mode: "bridge"
+              |   container_definitions:
+              |     - name: "ping"
+              |       image: "unasuke/ping2googledns:latest"
+              |       cpu: 128
+              |       memory: 128
+              | hooks:
+              |   after_register:
+              |     - echo registerd
+        section
+          h2 ECSで動かす
+          h3 Deploy
+          h4 unasuke/mikoshi
+          p deploy command in CI job
+          pre
+            code
+              | docker run --rm --tty \
+              |   -e IMAGE_REVISION=${DRONE_COMMIT_SHA} \
+              |   -e AWS_REGION=${AWS_DEFAULT_REGION} \
+              |   ${ECR_HOST}/mikoshi-container:latest deploy -g app-name
+        section
+          h2 もくじ
+          ol
+            li 新規Railsアプリとは
+            li まずはDocker化
+            li ECSで動かす
+            li ハマったところ  ⬅️⬅️⬅️
+            li 既存のRailsのESC化のハードル
+            li まとめ
+        section
+          h2 ハマったところ
+          h3 db:migrate → SIGTERM
+          p ECS RunTaskでのdb:migrateがSIGTERM
+        section
+          h2 ハマったところ
+          h3 db:migrate → SIGTERM
+          h4 原因
+          p
+            | nginxにtrueを渡して落としていたのが
+            br
+            | つられてRailsも落ちる 😨
+        section
+          h2 ハマったところ
+          h3 db:migrate → SIGTERM
+          h4 workaround
+          p
+            | Railsのみを含むTask Definitionを作成して
+            br
+            | それを使いdb:migrate
+          p.fragment
+            | 🤔🤔🤔🤔🤔🤔🤔🤔🤔🤔
+        section
+          h2 ハマったところ
+          h3 db:migrate → SIGTERM
+          h4 例えばnginxをやめる！！！！！
+        section
+          h2 ハマったところ
+          h3 db:migrate → SIGTERM
+          h4 nginxの役割
+          ul
+            li Basic Auth
+              ul
+                li Railsでもできる！
+            li httpsへのredirect
+              ul
+                li Railsでもできる！
+            li asset配信のドメイン制御
+              ul
+                li Railsでも……？
+        section
+          h2 ハマったところ
+          h3 db:migrate → SIGTERM
+          h4 asset配信のドメイン制御をRackで
+          p Rack middlewareでやっちゃえばいいんじゃ？！
+          ul
+            li: a(href='https://github.com/udzura/rack-block') https://github.com/udzura/rack-block
+            li: a(href='https://github.com/kickstarter/rack-attack') https://github.com/kickstarter/rack-attack
+            ul
+              li こっちを採用
+        section
+          h2 ハマったところ
+          h3 db:migrate → SIGTERM
+          h4 asset配信のドメイン制御をRackで
+          p Rack middlewareでやっちゃえばいいんじゃ？！
+          img(src='img/tweet-yu_suke-1994-933349862862594048.png' width='45%')
+          small
+            | 回収&nbsp;
+            a(href='https://twitter.com/yu_suke1994/status/933349862862594048') https://twitter.com/yu_suke1994/status/933349862862594048
+        section
+          h2 ハマったところ
+          ul
+            li logどうやって見るの
+            li rails consoleしたいんだけど
+          p 時間ないんで省略 🏃💨
+        section
+          h2 もくじ
+          ol
+            li 新規Railsアプリとは
+            li まずはDocker化
+            li ECSで動かす
+            li ハマったところ
+            li 既存のRailsのESC化のハードル ⬅️⬅️⬅️
+            li まとめ
+        section
+          h2 既存のRailsのESC化のハードル
+          p 既存のRailsっていうのはTMIXのことです
+          small あなたとJAVA
+        section
+          h2 TMIXのESC化のハードル
+          ul
+            li ridgepole
+            ul
+              li apply
+              li test
+        section
+          h2 TMIXのESC化のハードル
+          h3 ridgepole
+          p
+            | TMIXは1DB、複数App
+            br
+            | ridgepoleでschema管理
+          a(href='https://github.com/winebarrel/ridgepole') https://github.com/winebarrel/ridgepole
+        section
+          h2 TMIXのESC化のハードル
+          h3 ridgepole
+          h4 applyをどうやっていたか
+          p
+            | ridgepole applyはとあるRailsアプリの
+            br
+            | インスタンスからcapで行なっていた
+          p ⬆️
+          p コンテナ化するとなると……？
+        section
+          h2 TMIXのESC化のハードル
+          h3 ridgepole
+          h4 applyをどうするか
+          p ECS RunTaskで行なう(Done!)
+          small このためにmikoshiがRunTaskに対応した
+        section
+          h2 TMIXのESC化のハードル
+          h3 test
+          p
+            | CIでspecを実行するときに
+            br
+            | いちいちridgepole applyしている……
+          p ⬆️
+          p schema適用済のDB containerを用意できないか？
+          small 手がつけられていない……
+        section
+          h2 TMIXのESC化のハードル
+          h3 「やっていき」の気持ち 💪
+        section
+          h2 もくじ
+          ol
+            li 新規Railsアプリとは
+            li まずはDocker化
+            li ECSで動かす
+            li ハマったところ
+            li 既存のRailsのESC化のハードル
+            li まとめ ⬅️⬅️⬅️
+        section
+          h2 まとめ
+          ul
+            li ECSで動かすよりも、その前準備が大変
+            ul
+              li CI、deploy、構成etc……
+            li 社内アプリから導入したのは良かった
+            ul
+              li 営業時間外のダウンタイムに寛容
+            li 勢いも大事
+            ul
+              li 「Dockerやっていくぞ！！！」
+          br
+          small
+            p もっと詳しく
+            ul
+              li: a(href='http://blog.spicelife.jp/entry/2017/07/06/140349') RailsアプリをECSで運用するまでにやったこと、これからしていくこと
+              li: a(href='http://blog.spicelife.jp/entry/2017/09/05/183605') ridgepoleのapplyをECS RunTaskで実行するようにしました
+        section
+          h1.biggest
+            | やれば
+            br
+            | できる
+    script(src='lib/js/head.min.js')
+    script(src='js/reveal.min.js')
+    script.
+      // More info https://github.com/hakimel/reveal.js#configuration
+      Reveal.initialize({
+        history: true,
+        transition: 'none',
+        backgroundTransition: 'none',
+        // More info https://github.com/hakimel/reveal.js#dependencies
+        dependencies: [
+          { src: 'plugin/markdown/marked.js' },
+          { src: 'plugin/markdown/markdown.js' },
+          { src: 'plugin/notes/notes.js', async: true },
+          { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+        ]
+      });

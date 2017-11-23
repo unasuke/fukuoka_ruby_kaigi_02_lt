@@ -65,3 +65,23 @@
   border: solid 20px red;
   color: #fff;
 }
+
+.reveal section .flex-container {
+  display: flex;
+  justify-content: space-around;
+  flex-flow: row;
+}
+
+.reveal section .flex-container .item-40 {
+  width: 40%;
+}
+.reveal section .flex-container .item-50 {
+  width: 50%;
+}
+.reveal section .flex-container .item-60 {
+  width: 60%;
+}
+
+.reveal section ul.space {
+  margin-bottom: 1.5rem;
+}
